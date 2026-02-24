@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  community-server:
+    build: .
+    container_name: rdg-community-server
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - SESSION_TTL_MS=604800000
+      - CORS_ORIGIN=*
+    volumes:
+      # 持久化数据存储
+      - ./data:/app/data
+      - ./sessions.json:/app/sessions.json
+    networks:
+      - rdg-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8787/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  rdg-network:
+    driver: bridge
