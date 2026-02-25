@@ -2,21 +2,20 @@
 
 独立的 Express.js REST API 服务器，为随舞生成器提供社区功能。
 
-## 📋 功能特性
+## 功能特性
 
-- ✅ 用户认证 (注册/登录/Session管理)
-- ✅ 卡片管理 (创建/更新/删除/查询)
-- ✅ 标签系统 (创建/搜索/收藏)
-- ✅ 收藏夹功能
-- ✅ B站API代理
-- ✅ 数据持久化 (JSON文件存储)
+- 用户认证 (注册/登录/Session管理)
+- 卡片管理 (创建/更新/删除/查询)
+- 标签系统 (创建/搜索/收藏)
+- 收藏夹功能
+- B站API代理
+- 数据持久化 (JSON文件存储)
 
-## 🚀 快速开始
+## 快速开始
 
 ### 1. 安装依赖
 
 ```bash
-cd apps/server
 npm install
 ```
 
@@ -42,10 +41,10 @@ npm start
 
 服务器将运行在 `http://localhost:8787`
 
-## 📁 目录结构
+## 目录结构
 
 ```
-server/
+.
 ├── config/
 │   └── constants.js          # 配置常量
 ├── data/                     # 数据访问层
@@ -77,7 +76,7 @@ server/
 └── .env.example              # 环境变量示例
 ```
 
-## 🔌 API 端点
+## API 端点
 
 ### 健康检查
 ```
@@ -128,7 +127,7 @@ DELETE /api/collections/:id
 GET /api/bili/cover?bvid=xxx
 ```
 
-## ⚙️ 环境变量
+## 环境变量
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
@@ -138,7 +137,7 @@ GET /api/bili/cover?bvid=xxx
 | `CORS_ORIGIN` | CORS允许的源 | `*` |
 | `LOG_LEVEL` | 日志级别 | `info` |
 
-## 💾 数据存储
+## 数据存储
 
 数据以 JSON 格式存储在本地文件系统：
 
@@ -147,14 +146,14 @@ GET /api/bili/cover?bvid=xxx
 
 **注意**: 生产环境建议使用数据库 (如 MongoDB、PostgreSQL)
 
-## 🌦 生产部署
+## 生产部署
 
 ### 方式1: 直接使用 Node.js
 
 ```bash
 # 1. 克隆代码
 git clone <repository>
-cd apps/server
+cd AutoLableServer
 
 # 2. 安装依赖
 npm install --production
@@ -222,7 +221,7 @@ server {
 }
 ```
 
-## 🔒 安全建议
+## 安全建议
 
 1. **使用 HTTPS**
    - 配置 SSL 证书 (Let's Encrypt)
@@ -245,7 +244,7 @@ server {
    - 定期备份数据文件
    - 使用云存储 (S3/OSS)
 
-## 🧪 测试
+## 测试
 
 ```bash
 # 健康检查
@@ -262,14 +261,14 @@ curl -X POST http://localhost:8787/api/auth/login \
   -d '{"username":"test","password":"123456"}'
 ```
 
-## 📊 性能优化
+## 性能优化
 
 1. **启用 Gzip 压缩**
 2. **使用 Redis 缓存 Session**
 3. **数据库索引优化**
 4. **CDN 加速静态资源**
 
-## 🐛 常见问题
+## 常见问题
 
 ### Q: 端口被占用
 ```bash
@@ -290,10 +289,6 @@ npm start
 ### Q: CORS 错误
 检查 `.env` 中的 `CORS_ORIGIN` 配置
 
-## 📝 许可证
+## 许可证
 
 MIT
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request!
