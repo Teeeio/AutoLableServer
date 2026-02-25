@@ -11,8 +11,11 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 
 const app = express();
 
-// 中间件配置
-app.use(cors({ origin: true, credentials: true }));
+// 中间件配置 - 允许所有来源的跨域请求
+app.use(cors({
+  origin: '*',  // 允许所有来源
+  credentials: true
+}));
 app.use(express.json());
 
 // 注册路由
