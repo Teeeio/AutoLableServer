@@ -6,10 +6,10 @@ node_modules/
 .env.local
 .env.production.local
 
-# 数据文件
+# 数据文件 (仅忽略数据存储文件，不忽略代码)
 data.json
 sessions.json
-data/
+# data/ 目录下的代码文件需要提交，只忽略实际的数据存储
 
 # 日志
 *.log
