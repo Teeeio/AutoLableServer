@@ -38,19 +38,46 @@ function verifyPassword(user, password) {
   return crypto.timingSafeEqual(Buffer.from(hashed), Buffer.from(user.passwordHash));
 }
 
+function getBearerToken(req) {
+  const auth = req.header('authorization') || '';
+  const tokenMatch = auth.match(/^Bearer\s+(.+)$/i);
+  return tokenMatch ? tokenMatch[1] : '';
+}
+
+function canBootstrapPassword(user) {
+  return CONFIG.NODE_ENV !== 'production' && user.username === 'demo';
+}
+
+export function sanitizeUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    username: user.username,
+    createdAt: user.createdAt
+  };
+}
+
 /**
  * 获取请求用户
  */
 export function getUserFromRequest(req) {
-  const auth = req.header('authorization') || '';
-  const tokenMatch = auth.match(/^Bearer\s+(.+)$/i);
-  const token = tokenMatch ? tokenMatch[1] : '';
-  const session = token ? dataAPI.getSession(token) : null;
-  const sessionUserId = session?.userId;
-  const userId = sessionUserId || req.header('x-user-id');
+  const token = getBearerToken(req);
+  if (!token) return null;
 
-  if (!userId) return null;
-  return dataAPI.findUser((user) => user.id === userId) || null;
+  dataAPI.cleanupSessions();
+
+  const session = dataAPI.getSession(token);
+  if (!session || !session.userId) {
+    return null;
+  }
+
+  if (session.expiresAt && session.expiresAt <= Date.now()) {
+    dataAPI.deleteSession(token);
+    return null;
+  }
+
+  return dataAPI.findUser((user) => user.id === session.userId) || null;
 }
 
 /**
@@ -69,8 +96,7 @@ export function ensureUser(req, res) {
  * 检查session状态
  */
 export function checkSession(req) {
-  dataAPI.cleanupSessions();
-  return getUserFromRequest(req);
+  return sanitizeUser(getUserFromRequest(req));
 }
 
 /**
@@ -79,12 +105,12 @@ export function checkSession(req) {
 export function login(username, password) {
   const usernameValidation = validateUsername(username);
   if (!usernameValidation.valid) {
-    return { success: false, status: 400, message: 'Invalid request.' };
+    return { success: false, status: 400, message: '用户名格式无效' };
   }
 
   const passwordValidation = validatePassword(password);
   if (!passwordValidation.valid) {
-    return { success: false, status: 400, message: 'Invalid request.' };
+    return { success: false, status: 400, message: '密码格式无效' };
   }
 
   const user = dataAPI.findUser(
@@ -92,18 +118,22 @@ export function login(username, password) {
   );
 
   if (!user) {
-    return { success: false, status: 404, message: 'Not found.' };
+    return { success: false, status: 404, message: '用户不存在' };
   }
 
   if (!user.passwordHash || !user.salt) {
+    if (!canBootstrapPassword(user)) {
+      return { success: false, status: 503, message: '账户尚未初始化' };
+    }
+
     ensureUserPassword(user, passwordValidation.value);
   } else if (!verifyPassword(user, passwordValidation.value)) {
-    return { success: false, status: 403, message: 'Forbidden.' };
+    return { success: false, status: 401, message: '密码错误' };
   }
 
   const { token } = dataAPI.createSession(user.id);
 
-  return { success: true, user, token };
+  return { success: true, user: sanitizeUser(user), token };
 }
 
 /**
@@ -112,12 +142,12 @@ export function login(username, password) {
 export function register(username, password) {
   const usernameValidation = validateUsername(username);
   if (!usernameValidation.valid) {
-    return { success: false, status: 400, message: 'Invalid request.' };
+    return { success: false, status: 400, message: '用户名格式无效' };
   }
 
   const passwordValidation = validatePassword(password);
   if (!passwordValidation.valid) {
-    return { success: false, status: 400, message: 'Invalid request.' };
+    return { success: false, status: 400, message: '密码格式无效' };
   }
 
   const exists = dataAPI.findUser(
@@ -125,7 +155,7 @@ export function register(username, password) {
   );
 
   if (exists) {
-    return { success: false, status: 409, message: 'Conflict.' };
+    return { success: false, status: 409, message: '用户名已存在' };
   }
 
   const user = {
@@ -151,7 +181,7 @@ export function register(username, password) {
   };
   dataAPI.addCollection(defaultCollection);
 
-  return { success: true, user };
+  return { success: true, user: sanitizeUser(user) };
 }
 
 /**

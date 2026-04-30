@@ -10,13 +10,15 @@ const router = express.Router();
 
 // 获取用户的所有收藏夹
 router.get('/', (req, res) => {
-  const { userId } = req.query;
+  const user = authService.ensureUser(req, res);
+  if (!user) return;
 
-  if (!userId) {
-    return res.status(400).json({ ok: false, message: '缺少userId参数' });
+  const requestedUserId = req.query.userId ? String(req.query.userId) : '';
+  if (requestedUserId && requestedUserId !== user.id) {
+    return res.status(403).json({ ok: false, message: '无权访问其他用户的收藏夹' });
   }
 
-  const result = collectionService.getUserCollections(userId);
+  const result = collectionService.getUserCollections(user.id);
   res.json(result);
 });
 
@@ -28,8 +30,8 @@ router.get('/public', (req, res) => {
 
 // 获取指定收藏夹详情
 router.get('/:id', (req, res) => {
-  const userId = req.query.userId;
-  const result = collectionService.getCollectionById(req.params.id, userId);
+  const user = authService.getUserFromRequest(req);
+  const result = collectionService.getCollectionById(req.params.id, user?.id || null);
 
   if (!result.ok) {
     return res.status(result.status).json({ ok: false, message: result.message });
@@ -70,12 +72,6 @@ router.patch('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const user = authService.ensureUser(req, res);
   if (!user) return;
-
-  const { userId } = req.query;
-
-  if (user.id !== userId) {
-    return res.status(403).json({ ok: false, message: '无权删除此收藏夹' });
-  }
 
   const result = collectionService.deleteCollection(req.params.id, user.id);
 

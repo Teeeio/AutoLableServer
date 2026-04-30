@@ -3,7 +3,7 @@
  * 处理分类的业务逻辑
  */
 
-import dataAPI from '../data/index.js';
+import { getPublicCardsByCategory } from './card.service.js';
 
 /**
  * 预定义的分类列表
@@ -33,34 +33,5 @@ export function getCategories() {
  * 获取指定分类下的卡片
  */
 export function getCategoryCards(categoryId, options = {}) {
-  const { sort = 'latest', query = '' } = options;
-
-  // 获取该分类下的公开卡片
-  let cards = dataAPI.getCards().filter((card) => {
-    if (card.visibility !== 'public') return false;
-    if (card.categoryId !== categoryId) return false;
-    return true;
-  });
-
-  // 搜索过滤
-  if (query) {
-    const normalizedQuery = query.toLowerCase().trim();
-    cards = cards.filter((card) => {
-      const titleMatch = (card.title || '').toLowerCase().includes(normalizedQuery);
-      const bvidMatch = (card.bvid || '').toLowerCase().includes(normalizedQuery);
-      return titleMatch || bvidMatch;
-    });
-  }
-
-  // 排序
-  cards.sort((a, b) => {
-    if (sort === 'oldest') return a.createdAt - b.createdAt;
-    return b.createdAt - a.createdAt;
-  });
-
-  return {
-    ok: true,
-    items: cards,
-    total: cards.length
-  };
+  return getPublicCardsByCategory(categoryId, options);
 }

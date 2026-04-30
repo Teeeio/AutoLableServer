@@ -11,12 +11,37 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 
 const app = express();
 
-// 中间件配置 - 允许所有来源的跨域请求
-app.use(cors({
-  origin: '*',  // 允许所有来源
-  credentials: true
-}));
-app.use(express.json());
+function createCorsOptions() {
+  if (CONFIG.CORS_ORIGIN === '*') {
+    return {
+      origin: true,
+      credentials: false
+    };
+  }
+
+  const allowedOrigins = CONFIG.CORS_ORIGIN
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return {
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('CORS origin is not allowed.'));
+    },
+    credentials: true
+  };
+}
+
+app.disable('x-powered-by');
+
+// 中间件配置
+app.use(cors(createCorsOptions()));
+app.use(express.json({ limit: '1mb' }));
 
 // 注册路由
 registerRoutes(app);

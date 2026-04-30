@@ -11,7 +11,7 @@ import { generateNewCollectionId } from '../utils/collectionIdGenerator.js';
  */
 export function getUserCollections(userId) {
   const userCollections = dataAPI.filterCollections((c) => c.userId === userId);
-  return { ok: true, collections: userCollections };
+  return { ok: true, items: userCollections, collections: userCollections };
 }
 
 /**
@@ -29,7 +29,7 @@ export function getPublicCollections() {
     };
   });
 
-  return { ok: true, collections: collectionsWithCreator };
+  return { ok: true, items: collectionsWithCreator, collections: collectionsWithCreator };
 }
 
 /**
@@ -49,16 +49,25 @@ export function getCollectionById(collectionId, userId) {
     }
   }
 
-  // 获取收藏夹中的完整卡片数据
-  const cards = dataAPI.getCards().filter((card) =>
-    collection.cardIds.includes(card.id)
-  );
+  const canViewPrivateCards = collection.userId === userId;
+  const cards = dataAPI.getCards().filter((card) => {
+    if (!collection.cardIds.includes(card.id)) {
+      return false;
+    }
+
+    return canViewPrivateCards || card.visibility === 'public';
+  });
 
   // 获取创建者信息
   const creator = dataAPI.findUser((u) => u.id === collection.userId);
 
   return {
     ok: true,
+    item: {
+      ...collection,
+      creatorUsername: creator?.username || '未知用户',
+      cards
+    },
     collection: {
       ...collection,
       creatorUsername: creator?.username || '未知用户',
@@ -98,7 +107,7 @@ export function createCollection(userId, collectionData) {
 
   dataAPI.addCollection(newCollection);
 
-  return { ok: true, collection: newCollection };
+  return { ok: true, item: newCollection, collection: newCollection };
 }
 
 /**
@@ -144,7 +153,7 @@ export function updateCollection(collectionId, userId, updates) {
 
   dataAPI.updateCollection((c) => c.id === collectionId, collection);
 
-  return { ok: true, collection };
+  return { ok: true, item: collection, collection };
 }
 
 /**

@@ -49,4 +49,29 @@ export function registerRoutes(app) {
     const result = cardService.getLikedCards(user.id);
     res.json(result);
   });
+
+  app.get('/api/my/card-favorites', (req, res) => {
+    const user = authService.ensureUser(req, res);
+    if (!user) return;
+
+    const result = cardService.getFavoriteCards(user.id);
+    res.json(result);
+  });
+
+  app.post('/api/card-favorites/:cardId', (req, res) => {
+    const user = authService.ensureUser(req, res);
+    if (!user) return;
+
+    const result = cardService.toggleCardFavorite(req.params.cardId, user.id);
+
+    if (!result.success) {
+      return res.status(result.status).json({ ok: false, message: result.message });
+    }
+
+    res.json({
+      ok: true,
+      isFavorite: result.isFavorite,
+      favoriteCount: result.favoriteCount
+    });
+  });
 }

@@ -6,9 +6,18 @@
 import express from 'express';
 import * as authService from '../services/auth.service.js';
 import * as cardService from '../services/card.service.js';
-import { normalize } from '../utils/helpers.js';
 
 const router = express.Router();
+
+// 获取公开社区卡片
+router.get('/public', (req, res) => {
+  const user = authService.getUserFromRequest(req);
+  const { page, pageSize } = req.query;
+  const query = req.query.query ? String(req.query.query).trim() : '';
+  const sort = req.query.sort ? String(req.query.sort).trim() : 'latest';
+  const result = cardService.getPublicCards(query, sort, page, pageSize, user?.id || null);
+  res.json(result);
+});
 
 // 获取我的卡片
 router.get('/', (req, res) => {
@@ -101,7 +110,7 @@ router.post('/:id/like', (req, res) => {
     return res.status(result.status).json({ ok: false, message: result.message });
   }
 
-  res.json({ ok: true, isLiked: result.isLiked });
+  res.json({ ok: true, isLiked: result.isLiked, likeCount: result.likeCount });
 });
 
 export default router;

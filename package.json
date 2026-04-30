@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "package:release": "powershell -ExecutionPolicy Bypass -File ./package-release.ps1"
   },
   "keywords": [
     "api",

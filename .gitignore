@@ -14,6 +14,8 @@ sessions.json
 # 日志
 *.log
 logs/
+release/
+server.pid
 
 # 系统文件
 .DS_Store

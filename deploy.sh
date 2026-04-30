@@ -1,59 +1,79 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# 随舞社区服务器部署脚本
+set -euo pipefail
 
-set -e
+APP_NAME="auto-label-server"
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOG_DIR="$ROOT_DIR/logs"
+PID_FILE="$ROOT_DIR/server.pid"
 
-echo "========================================="
-echo "  随舞社区服务器 - 部署脚本"
-echo "========================================="
+cd "$ROOT_DIR"
 
-# 1. 检查 Node.js 版本
-echo "📋 检查环境..."
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo "❌ 需要 Node.js 18 或更高版本"
-    exit 1
+echo "==> Deploying $APP_NAME"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "ERROR: Node.js is required."
+  exit 1
 fi
-echo "✅ Node.js 版本: $(node -v)"
 
-# 2. 安装依赖
-echo "📦 安装依赖..."
-npm install --production
+if ! command -v npm >/dev/null 2>&1; then
+  echo "ERROR: npm is required."
+  exit 1
+fi
 
-# 3. 创建数据目录
-echo "📁 创建数据目录..."
-mkdir -p data
+NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  echo "ERROR: Node.js 18+ is required."
+  exit 1
+fi
 
-# 4. 复制环境变量配置
+mkdir -p "$LOG_DIR"
+mkdir -p "$ROOT_DIR/data"
+
 if [ ! -f .env ]; then
-    echo "📝 创建环境变量配置..."
-    cp .env.example .env
-    echo "⚠️  请编辑 .env 文件配置生产环境参数"
-    echo "nano .env"
-    read -p "按回车继续..."
+  cp .env.example .env
+  echo "Created .env from .env.example"
 fi
 
-# 5. 启动服务器
-echo "🚀 启动服务器..."
-if command -v pm2 &> /dev/null; then
-    echo "使用 PM2 启动..."
-    pm2 start index.js --name community-server
-    pm2 save
-    echo "✅ 服务器已启动 (PM2)"
-    echo "查看日志: pm2 logs community-server"
-    echo "查看状态: pm2 status"
+set -a
+. ./.env
+set +a
+
+if [ -f package-lock.json ]; then
+  npm ci --omit=dev
 else
-    echo "使用 Node.js 直接启动..."
-    nohup node index.js > server.log 2>&1 &
-    echo "✅ 服务器已启动"
-    echo "查看日志: tail -f server.log"
-    echo "进程ID: $!"
+  npm install --omit=dev
 fi
 
-echo ""
-echo "========================================="
-echo "  部署完成!"
-echo "========================================="
-echo "服务器地址: http://localhost:8787"
-echo "健康检查: curl http://localhost:8787/api/health"
+PORT="${PORT:-8787}"
+
+if command -v pm2 >/dev/null 2>&1; then
+  if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
+    pm2 restart "$APP_NAME" --update-env
+  else
+    pm2 start index.js --name "$APP_NAME" --update-env
+  fi
+  pm2 save >/dev/null 2>&1 || true
+else
+  if [ -f "$PID_FILE" ]; then
+    EXISTING_PID="$(cat "$PID_FILE" || true)"
+    if [ -n "${EXISTING_PID:-}" ] && kill -0 "$EXISTING_PID" >/dev/null 2>&1; then
+      kill "$EXISTING_PID" >/dev/null 2>&1 || true
+      sleep 1
+    fi
+  fi
+
+  nohup node index.js >"$LOG_DIR/server.out.log" 2>"$LOG_DIR/server.err.log" &
+  echo $! > "$PID_FILE"
+fi
+
+for attempt in $(seq 1 15); do
+  if node -e "require('http').get('http://127.0.0.1:${PORT}/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"; then
+    echo "Deployment succeeded: http://127.0.0.1:${PORT}/api/health"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "ERROR: Health check failed after deploy."
+exit 1
