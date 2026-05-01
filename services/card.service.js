@@ -7,6 +7,7 @@ import dataAPI from '../data/index.js';
 import { validateCardTitle, validateBvid } from '../utils/validators.js';
 import { normalize, paginate } from '../utils/helpers.js';
 import { CONFIG } from '../config/constants.js';
+import { normalizeCategoryId } from '../config/categories.js';
 import { generateCVId } from '../utils/idGenerator.js';
 
 function toArray(value) {
@@ -63,7 +64,7 @@ function normalizeCommunityCard(card, sourceType, context) {
     searchTags: toArray(card.searchTags),
     bpm: String(card.bpm || '').trim(),
     notes: String(card.notes || '').trim(),
-    categoryId: String(card.categoryId || '').trim(),
+    categoryId: normalizeCategoryId(card.categoryId),
     visibility: 'public',
     likeCount,
     favoriteCount,
@@ -90,9 +91,10 @@ function buildCommunityCatalog(userId = null) {
 
 function filterCommunityCards(cards, query = '', categoryId = '') {
   const normalizedQuery = normalize(query);
+  const normalizedCategoryId = normalizeCategoryId(categoryId);
 
   return cards.filter((card) => {
-    if (categoryId && card.categoryId !== categoryId) {
+    if (normalizedCategoryId && normalizeCategoryId(card.categoryId) !== normalizedCategoryId) {
       return false;
     }
 
@@ -261,7 +263,7 @@ export function createCard(userId, cardData) {
     bpm: String(cardData.bpm || '').trim(),
     notes: String(cardData.notes || '').trim(),
     visibility: cardData.visibility === 'public' ? 'public' : 'private',
-    categoryId: String(cardData.categoryId || '').trim(),
+    categoryId: normalizeCategoryId(cardData.categoryId),
     publishedAt: cardData.visibility === 'public' ? now : 0,
     likeCount: 0,
     favoriteCount: 0,
@@ -304,7 +306,7 @@ export function updateCard(cardId, userId, updates) {
   if (Number.isFinite(Number(updates.cid))) card.cid = Number(updates.cid);
   if (Number.isFinite(Number(updates.start))) card.start = Number(updates.start);
   if (Number.isFinite(Number(updates.end))) card.end = Number(updates.end);
-  if (typeof updates.categoryId === 'string') card.categoryId = updates.categoryId.trim();
+  if (typeof updates.categoryId === 'string') card.categoryId = normalizeCategoryId(updates.categoryId);
 
   if (updates.tags !== undefined) {
     card.tags = toArray(updates.tags);
@@ -390,7 +392,7 @@ export function publishCard(cardId, userId, publishData) {
 
   card.visibility = 'public';
   card.publishedAt = Date.now();
-  card.categoryId = String(publishData.categoryId || '').trim();
+  card.categoryId = normalizeCategoryId(publishData.categoryId);
   card.searchTags = toArray(publishData.searchTags);
   card.clipTags = publishData.clipTags !== undefined ? toArray(publishData.clipTags) : card.clipTags;
   card.likeCount = Number(card.likeCount) || 0;

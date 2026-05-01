@@ -6,6 +6,7 @@
 import dataAPI from '../data/index.js';
 import { normalize, paginate } from '../utils/helpers.js';
 import { CONFIG } from '../config/constants.js';
+import { normalizeCategoryId } from '../config/categories.js';
 
 /**
  * 辅助函数:转换为数组
@@ -62,7 +63,7 @@ export function publishCardToCommunity(userId, cardData) {
     notes: String(cardData.notes || '').trim(),
 
     // 发布信息
-    categoryId: String(cardData.categoryId || '').trim(),
+    categoryId: normalizeCategoryId(cardData.categoryId),
     searchTags: toArray(cardData.searchTags),
     likeCount: 0,                  // 点赞数
     favoriteCount: 0,              // 收藏数
@@ -123,10 +124,11 @@ export function unpublishFromCommunity(publishedCardId, userId) {
  */
 export function getCommunityCards(query, categoryId, sort = 'newest', page = 1, pageSize = 20) {
   let cards = dataAPI.getPublishedCards();
+  const normalizedCategoryId = normalizeCategoryId(categoryId);
 
   // 分类过滤
-  if (categoryId) {
-    cards = cards.filter((card) => card.categoryId === categoryId);
+  if (normalizedCategoryId) {
+    cards = cards.filter((card) => normalizeCategoryId(card.categoryId) === normalizedCategoryId);
   }
 
   // 搜索过滤
