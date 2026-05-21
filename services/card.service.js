@@ -140,6 +140,23 @@ function findPersonalCard(cardId) {
   return dataAPI.findCard((item) => item.id === cardId) || null;
 }
 
+function normalizeFiniteNumber(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function validateSegmentRange(start, end) {
+  if (start !== null && start < 0) {
+    return { valid: false, message: 'Start time must be greater than or equal to 0.' };
+  }
+
+  if (start !== null && end !== null && end <= start) {
+    return { valid: false, message: 'End time must be greater than start time.' };
+  }
+
+  return { valid: true };
+}
+
 function resolveInteractionTarget(cardId) {
   const publishedCard = findPublishedCard(cardId);
   if (publishedCard) {
@@ -300,40 +317,63 @@ export function updateCard(cardId, userId, updates) {
     };
   }
 
-  if (typeof updates.title === 'string') card.title = updates.title.trim();
-  if (typeof updates.bvid === 'string') card.bvid = updates.bvid.trim();
-  if (Number.isFinite(Number(updates.aid))) card.aid = Number(updates.aid);
-  if (Number.isFinite(Number(updates.cid))) card.cid = Number(updates.cid);
-  if (Number.isFinite(Number(updates.start))) card.start = Number(updates.start);
-  if (Number.isFinite(Number(updates.end))) card.end = Number(updates.end);
-  if (typeof updates.categoryId === 'string') card.categoryId = normalizeCategoryId(updates.categoryId);
+  const patch = {};
+
+  if (typeof updates.title === 'string') patch.title = updates.title.trim();
+  if (typeof updates.bvid === 'string') patch.bvid = updates.bvid.trim();
+  if (Number.isFinite(Number(updates.aid))) patch.aid = Number(updates.aid);
+  if (Number.isFinite(Number(updates.cid))) patch.cid = Number(updates.cid);
+
+  const nextStart = updates.start !== undefined ? normalizeFiniteNumber(updates.start) : null;
+  const nextEnd = updates.end !== undefined ? normalizeFiniteNumber(updates.end) : null;
+
+  if (updates.start !== undefined && nextStart === null) {
+    return { success: false, status: 400, message: 'Invalid start time.' };
+  }
+  if (updates.end !== undefined && nextEnd === null) {
+    return { success: false, status: 400, message: 'Invalid end time.' };
+  }
+
+  const resolvedStart = nextStart !== null ? nextStart : Number(card.start) || 0;
+  const resolvedEnd = nextEnd !== null ? nextEnd : Number(card.end) || 0;
+  const rangeValidation = validateSegmentRange(resolvedStart, resolvedEnd);
+  if (!rangeValidation.valid) {
+    return { success: false, status: 400, message: rangeValidation.message };
+  }
+
+  if (nextStart !== null) patch.start = nextStart;
+  if (nextEnd !== null) patch.end = nextEnd;
+  if (typeof updates.categoryId === 'string') patch.categoryId = normalizeCategoryId(updates.categoryId);
 
   if (updates.tags !== undefined) {
-    card.tags = toArray(updates.tags);
+    patch.tags = toArray(updates.tags);
   }
 
   if (updates.clipTags !== undefined) {
-    card.clipTags = toArray(updates.clipTags);
+    patch.clipTags = toArray(updates.clipTags);
   }
 
   if (updates.searchTags !== undefined) {
-    card.searchTags = toArray(updates.searchTags);
+    patch.searchTags = toArray(updates.searchTags);
   }
 
-  if (typeof updates.bpm === 'string') card.bpm = updates.bpm.trim();
-  if (typeof updates.notes === 'string') card.notes = updates.notes.trim();
+  if (typeof updates.bpm === 'string') patch.bpm = updates.bpm.trim();
+  if (typeof updates.notes === 'string') patch.notes = updates.notes.trim();
 
   if (updates.visibility !== undefined) {
-    card.visibility = updates.visibility === 'public' ? 'public' : 'private';
-    if (card.visibility === 'public' && !card.publishedAt) {
-      card.publishedAt = Date.now();
+    patch.visibility = updates.visibility === 'public' ? 'public' : 'private';
+    if (patch.visibility === 'public' && !card.publishedAt) {
+      patch.publishedAt = Date.now();
     }
   }
 
-  card.updatedAt = Date.now();
-  dataAPI.saveState();
+  patch.updatedAt = Date.now();
+  const updatedCard = dataAPI.updateCard(
+    (item) => item.id === cardId && item.userId === userId,
+    patch
+  );
 
-  return { success: true, item: card };
+  return { success: true, item: updatedCard };
 }
 
 export function deleteCard(cardId, userId) {

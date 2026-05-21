@@ -122,6 +122,34 @@ async function main() {
   const cardId = createCard.data.item?.id;
   assert('create card', createCard.status === 200 && Boolean(cardId), `status=${createCard.status}`);
 
+  const updateCardRange = await request(`/api/cards/${cardId}`, {
+    method: 'PATCH',
+    headers: authHeaders,
+    body: JSON.stringify({
+      start: 3.25,
+      end: 12.75,
+      searchTags: ['regression', 'updated'],
+      clipTags: ['clip', 'range']
+    })
+  });
+  assert(
+    'update card range',
+    updateCardRange.status === 200 &&
+      updateCardRange.data.item?.start === 3.25 &&
+      updateCardRange.data.item?.end === 12.75,
+    `status=${updateCardRange.status}`
+  );
+
+  const cardsAfterRangeUpdate = await request('/api/cards', { headers: authHeaders });
+  const updatedCard = cardsAfterRangeUpdate.data.items?.find((item) => item.id === cardId);
+  assert(
+    'updated range persisted',
+    cardsAfterRangeUpdate.status === 200 &&
+      updatedCard?.start === 3.25 &&
+      updatedCard?.end === 12.75,
+    `status=${cardsAfterRangeUpdate.status}`
+  );
+
   const publishCard = await request(`/api/cards/${cardId}/publish`, {
     method: 'POST',
     headers: authHeaders,
